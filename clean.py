@@ -66,6 +66,27 @@ def normalize_numbers(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def drop_invalid_and_duplicates(df: pd.DataFrame) -> pd.DataFrame:
+    """Убирает строки без full_name/course (ключевые поля) и дубли записей.
+
+    Дубль определяем по (full_name, course, enrollment_date) — это один
+    и тот же реальный факт "студент записался на курс в такой-то день",
+    даже если student_id разный (например, повторная выгрузка/повторный
+    ввод). student_id как ключ не годится: он может отличаться у одной
+    и той же реальной записи (см. id=1 и id=6 в исходных данных).
+    """
+    before = len(df)
+    df = df.dropna(subset=["full_name", "course"])
+    dropped_broken = before - len(df)
+
+    before = len(df)
+    df = df.drop_duplicates(subset=["full_name", "course", "enrollment_date"])
+    dropped_dup = before - len(df)
+
+    print(f"[clean] удалено битых строк: {dropped_broken}, дублей: {dropped_dup}")
+    return df
+
+
 if __name__ == "__main__":
     df = load_raw(RAW_PATH)
     print(f"Прочитано строк: {len(df)}")
@@ -73,6 +94,6 @@ if __name__ == "__main__":
     df = normalize_text(df)
     df = normalize_dates(df)
     df = normalize_numbers(df)
+    df = drop_invalid_and_duplicates(df)
+    print(f"Осталось строк после очистки: {len(df)}")
     print(df[["full_name", "course", "enrollment_date", "score", "attendance_pct"]])
-    print("Не распознанных дат:", df["enrollment_date"].isna().sum())
-    print("Пропущенных score:", df["score"].isna().sum())
