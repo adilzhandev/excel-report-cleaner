@@ -34,9 +34,27 @@ def normalize_text(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# В датасете дата приходит в трёх форматах: 2024-01-15, 15.01.2024, 2024/01/16.
+# pandas.to_datetime с format=None угадывает не всегда стабильно (может
+# перепутать день/месяц), поэтому пробуем форматы по очереди явно.
+DATE_FORMATS = ["%Y-%m-%d", "%d.%m.%Y", "%Y/%m/%d"]
+
+
+def normalize_dates(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    parsed = pd.Series(pd.NaT, index=df.index)
+    for fmt in DATE_FORMATS:
+        mask = parsed.isna()
+        parsed[mask] = pd.to_datetime(df.loc[mask, "enrollment_date"], format=fmt, errors="coerce")
+    df["enrollment_date"] = parsed.dt.strftime("%Y-%m-%d")
+    return df
+
+
 if __name__ == "__main__":
     df = load_raw(RAW_PATH)
     print(f"Прочитано строк: {len(df)}")
 
     df = normalize_text(df)
-    print(df[["full_name", "course"]].head(10))
+    df = normalize_dates(df)
+    print(df[["full_name", "course", "enrollment_date"]].head(10))
+    print("Не распознанных дат:", df["enrollment_date"].isna().sum())
