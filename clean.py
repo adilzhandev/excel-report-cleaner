@@ -87,6 +87,22 @@ def drop_invalid_and_duplicates(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def build_summary(df: pd.DataFrame) -> pd.DataFrame:
+    """Сводка по курсам: количество студентов, средний балл, средняя посещаемость."""
+    summary = df.groupby("course").agg(
+        students=("full_name", "count"),
+        avg_score=("score", "mean"),
+        avg_attendance=("attendance_pct", "mean"),
+    ).round(1)
+    return summary.sort_values("students", ascending=False).reset_index()
+
+
+def export_to_excel(cleaned: pd.DataFrame, summary: pd.DataFrame, path: str) -> None:
+    with pd.ExcelWriter(path, engine="openpyxl") as writer:
+        cleaned.to_excel(writer, sheet_name="Очищенные данные", index=False)
+        summary.to_excel(writer, sheet_name="Сводка", index=False)
+
+
 if __name__ == "__main__":
     df = load_raw(RAW_PATH)
     print(f"Прочитано строк: {len(df)}")
@@ -96,4 +112,10 @@ if __name__ == "__main__":
     df = normalize_numbers(df)
     df = drop_invalid_and_duplicates(df)
     print(f"Осталось строк после очистки: {len(df)}")
-    print(df[["full_name", "course", "enrollment_date", "score", "attendance_pct"]])
+
+    summary = build_summary(df)
+    print("\nСводка по курсам:")
+    print(summary)
+
+    export_to_excel(df, summary, REPORT_PATH)
+    print(f"\nГотово: {REPORT_PATH}")
