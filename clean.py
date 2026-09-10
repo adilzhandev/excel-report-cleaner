@@ -50,11 +50,29 @@ def normalize_dates(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def normalize_numbers(df: pd.DataFrame) -> pd.DataFrame:
+    """Приводит score/attendance_pct к числам и обнуляет значения вне 0-100.
+
+    score=120 или score=-5 — это ошибки ввода (баллы физически не могут
+    быть больше 100 или отрицательными), а не реальные оценки. Не
+    удаляем всю строку из-за одного плохого числа — только помечаем
+    само значение как пропущенное (NaN), остальные данные строки годные.
+    """
+    df = df.copy()
+    for col in ("score", "attendance_pct"):
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+        out_of_range = ~df[col].between(0, 100)
+        df.loc[out_of_range, col] = pd.NA
+    return df
+
+
 if __name__ == "__main__":
     df = load_raw(RAW_PATH)
     print(f"Прочитано строк: {len(df)}")
 
     df = normalize_text(df)
     df = normalize_dates(df)
-    print(df[["full_name", "course", "enrollment_date"]].head(10))
+    df = normalize_numbers(df)
+    print(df[["full_name", "course", "enrollment_date", "score", "attendance_pct"]])
     print("Не распознанных дат:", df["enrollment_date"].isna().sum())
+    print("Пропущенных score:", df["score"].isna().sum())
